@@ -57,7 +57,8 @@
     "linux": {
       "target": ["AppImage", "deb"],
       "icon": "build/icon.png",
-      "category": "Office"
+      "category": "Office",
+      "maintainer": "Lucas Alves"
     },
     "nsis": {
       "oneClick": false,
