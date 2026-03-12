@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useAppSelector, useAppDispatch } from '../store/hooks'
-import { loadCurrentActivity, loadHistory, openActivity, closeActivity } from '../store/activitySlice'
+import { loadCurrentActivity, loadPausedActivities, loadHistory, openActivity, pauseActivity, resumeActivity, closeActivity } from '../store/activitySlice'
 import type { Session, OdooProject, OdooTask } from '../types'
 import CloseModal from './CloseModal'
+import Control from './Control'
 import logoImg from '../assets/logo.png'
 
 interface Props {
@@ -54,7 +55,7 @@ function findStageByType(stages: Stage[], type: 'todo' | 'doing' | 'done'): Stag
 
 export default function Dashboard({ session, onLogout }: Props) {
   const dispatch = useAppDispatch()
-  const { current: currentActivity, history } = useAppSelector((s) => s.activity)
+  const { current: currentActivity, paused: pausedActivities, history } = useAppSelector((s) => s.activity)
 
   const [projects, setProjects] = useState<OdooProject[]>([])
   const [tasks, setTasks] = useState<OdooTask[]>([])
@@ -64,6 +65,7 @@ export default function Dashboard({ session, onLogout }: Props) {
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'tasks' | 'history'>('tasks')
+  const [view, setView] = useState<'tasks' | 'control'>('tasks')
   const timerRef = useRef<ReturnType<typeof setInterval>>()
 
   // Filters
@@ -105,6 +107,7 @@ export default function Dashboard({ session, onLogout }: Props) {
     fetchTasks()
     fetchStages()
     dispatch(loadCurrentActivity())
+    dispatch(loadPausedActivities())
     dispatch(loadHistory())
   }, [fetchProjects, fetchTasks, fetchStages, dispatch])
 
@@ -126,7 +129,8 @@ export default function Dashboard({ session, onLogout }: Props) {
   useEffect(() => {
     if (currentActivity && !currentActivity.closedAt) {
       const update = () => {
-        const ms = Date.now() - new Date(currentActivity.startedAt).getTime()
+        const sessionMs = Date.now() - new Date(currentActivity.startedAt).getTime()
+        const ms = (currentActivity.accumulatedMs || 0) + sessionMs
         setElapsed(formatDuration(ms))
       }
       update()
@@ -156,6 +160,15 @@ export default function Dashboard({ session, onLogout }: Props) {
     }
 
     dispatch(openActivity({ taskId: task.id, taskName: task.name, projectId: projId, projectName: projName }))
+  }
+
+  const handlePause = () => {
+    if (!currentActivity) return
+    dispatch(pauseActivity(currentActivity.id))
+  }
+
+  const handleResume = (activityId: string) => {
+    dispatch(resumeActivity(activityId))
   }
 
   const handleConfirmClose = async (description: string) => {
@@ -250,11 +263,25 @@ export default function Dashboard({ session, onLogout }: Props) {
           </div>
         </div>
 
+        {session.isAdmin && (
+          <>
+            <div className="sidebar-section">Admin</div>
+            <div className="sidebar-list" style={{ marginBottom: 4 }}>
+              <div
+                className={`sidebar-item ${view === 'control' ? 'active' : ''}`}
+                onClick={() => setView('control')}
+              >
+                ◈ Controle
+              </div>
+            </div>
+          </>
+        )}
+
         <div className="sidebar-section">Projetos</div>
         <div className="sidebar-list">
           <div
-            className={`sidebar-item ${selectedProject === null ? 'active' : ''}`}
-            onClick={() => selectProject(null)}
+            className={`sidebar-item ${view === 'tasks' && selectedProject === null ? 'active' : ''}`}
+            onClick={() => { setView('tasks'); selectProject(null) }}
           >
             Todos
             <span className="count">{projects.reduce((s, p) => s + p.task_count, 0)}</span>
@@ -262,8 +289,8 @@ export default function Dashboard({ session, onLogout }: Props) {
           {projects.map((p, idx) => (
             <div
               key={p.id}
-              className={`sidebar-item fade-in ${selectedProject === p.id ? 'active' : ''}`}
-              onClick={() => selectProject(p.id)}
+              className={`sidebar-item fade-in ${view === 'tasks' && selectedProject === p.id ? 'active' : ''}`}
+              onClick={() => { setView('tasks'); selectProject(p.id) }}
               style={{ animationDelay: `${idx * 40}ms` }}
             >
               {p.name}
@@ -279,8 +306,11 @@ export default function Dashboard({ session, onLogout }: Props) {
         </div>
       </aside>
 
+      {/* Control view */}
+      {view === 'control' && <Control session={session} />}
+
       {/* Main */}
-      <main className="main-content">
+      {view === 'tasks' && <main className="main-content">
         <div className="main-header">
           <div>
             <div className="main-title">{selectedProjectName}</div>
@@ -316,9 +346,35 @@ export default function Dashboard({ session, onLogout }: Props) {
               <div className="project-name">{currentActivity.projectName}</div>
             </div>
             <div className="timer">{elapsed}</div>
+            <button className="btn-pause" onClick={handlePause} title="Pausar">
+              ⏸
+            </button>
             <button className="btn-stop" onClick={() => setShowCloseModal(true)}>
               PARAR
             </button>
+          </div>
+        )}
+
+        {/* Paused activities */}
+        {pausedActivities.length > 0 && (
+          <div className="paused-list">
+            <div className="paused-list-label">Pausadas</div>
+            {pausedActivities.map((a) => (
+              <div key={a.id} className="paused-item">
+                <div className="paused-info">
+                  <div className="paused-task-name">{a.taskName}</div>
+                  <div className="paused-project-name">{a.projectName}</div>
+                </div>
+                <div className="paused-time">{formatDuration(a.accumulatedMs || 0)}</div>
+                <button
+                  className="btn-resume"
+                  onClick={() => handleResume(a.id)}
+                  title="Retomar"
+                >
+                  ▶ Retomar
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -457,7 +513,7 @@ export default function Dashboard({ session, onLogout }: Props) {
             )}
           </div>
         )}
-      </main>
+      </main>}
 
       {/* Close modal */}
       {showCloseModal && currentActivity && (

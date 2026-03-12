@@ -17,11 +17,18 @@ contextBridge.exposeInMainWorld('api', {
 
   // Activity tracking
   getCurrentActivity: () => ipcRenderer.invoke('activity:current'),
+  getPausedActivities: () => ipcRenderer.invoke('activity:paused-list'),
   openActivity: (taskId: number, taskName: string, projectId: number, projectName: string) =>
     ipcRenderer.invoke('activity:open', taskId, taskName, projectId, projectName),
+  pauseActivity: (activityId: string) => ipcRenderer.invoke('activity:pause', activityId),
+  resumeActivity: (activityId: string) => ipcRenderer.invoke('activity:resume', activityId),
   closeActivity: (activityId: string, description: string) =>
     ipcRenderer.invoke('activity:close', activityId, description),
   getHistory: () => ipcRenderer.invoke('activity:history'),
+
+  // Admin
+  getTimesheets: (dateFrom: string, dateTo: string) =>
+    ipcRenderer.invoke('odoo:timesheets', dateFrom, dateTo),
 
   // Notification-triggered pause
   onPausePrompt: (callback: () => void) => {

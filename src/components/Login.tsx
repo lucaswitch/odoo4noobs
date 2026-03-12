@@ -16,9 +16,13 @@ declare global {
       getStages: (projectId?: number) => Promise<any[]>
       changeTaskStage: (taskId: number, stageId: number) => Promise<boolean>
       getCurrentActivity: () => Promise<any>
+      getPausedActivities: () => Promise<any[]>
       openActivity: (taskId: number, taskName: string, projectId: number, projectName: string) => Promise<any>
+      pauseActivity: (activityId: string) => Promise<any>
+      resumeActivity: (activityId: string) => Promise<any>
       closeActivity: (activityId: string, description: string) => Promise<any>
       getHistory: () => Promise<any[]>
+      getTimesheets: (dateFrom: string, dateTo: string) => Promise<any[]>
       onPausePrompt: (callback: () => void) => () => void
     }
   }

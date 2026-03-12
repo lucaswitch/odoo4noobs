@@ -336,6 +336,23 @@ html, body, #root {
   flex-shrink: 0;
 }
 
+.btn-pause {
+  background: transparent;
+  color: var(--accent-amber);
+  border: 1px solid rgba(224, 138, 40, 0.4);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-pause:hover {
+  background: var(--accent-amber-glow);
+  border-color: var(--accent-amber);
+}
+
 .btn-stop {
   background: var(--danger);
   color: white;
@@ -354,6 +371,260 @@ html, body, #root {
 .btn-stop:hover {
   background: #e05050;
   transform: scale(1.02);
+}
+
+/* Paused activities list */
+.paused-list {
+  margin: 0 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.paused-list-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 2px 2px;
+}
+
+.paused-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.paused-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.paused-task-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.paused-project-name {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.paused-time {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.btn-resume {
+  background: transparent;
+  color: var(--accent-cyan);
+  border: 1px solid rgba(56, 160, 192, 0.35);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-resume:hover {
+  background: var(--accent-cyan-dim);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+/* ── Period filter (Control view) ─────────────────────────────────────────── */
+
+.period-filter {
+  display: flex;
+  gap: 4px;
+}
+
+.period-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  transition: all 0.15s;
+}
+
+.period-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.period-btn.active {
+  background: var(--accent-amber-glow);
+  border-color: rgba(224, 138, 40, 0.35);
+  color: var(--accent-amber);
+}
+
+/* ── Control table ─────────────────────────────────────────────────────────── */
+
+.ctrl-user-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.ctrl-user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  cursor: pointer;
+  background: var(--bg-elevated);
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.ctrl-user-row:hover {
+  background: var(--bg-hover);
+}
+
+.ctrl-chevron {
+  font-size: 11px;
+  color: var(--text-muted);
+  width: 12px;
+  flex-shrink: 0;
+}
+
+.ctrl-user-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ctrl-user-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ctrl-today-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-cyan);
+  background: var(--accent-cyan-dim);
+  border: 1px solid rgba(56, 160, 192, 0.2);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.ctrl-total-hours {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-amber);
+  min-width: 48px;
+  text-align: right;
+}
+
+.ctrl-entries {
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.ctrl-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 16px 9px 38px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.ctrl-entry:last-of-type {
+  border-bottom: none;
+}
+
+.ctrl-entry-today {
+  background: rgba(224, 138, 40, 0.04);
+}
+
+.ctrl-entry-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  width: 36px;
+}
+
+.ctrl-entry-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.ctrl-entry-task {
+  color: var(--text-primary);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ctrl-entry-project {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.ctrl-entry-desc {
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.ctrl-entry-hours {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  min-width: 44px;
+  text-align: right;
+}
+
+.ctrl-entries-footer {
+  padding: 8px 16px 8px 38px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.ctrl-entries-footer strong {
+  color: var(--accent-amber);
+}
+
+.ctrl-empty {
+  padding: 12px 16px 12px 38px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* Task card */

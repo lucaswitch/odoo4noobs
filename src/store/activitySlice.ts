@@ -3,18 +3,24 @@ import type { TrackedActivity } from '../types'
 
 interface ActivityState {
   current: TrackedActivity | null
+  paused: TrackedActivity[]
   history: TrackedActivity[]
   closing: boolean
 }
 
 const initialState: ActivityState = {
   current: null,
+  paused: [],
   history: [],
   closing: false,
 }
 
 export const loadCurrentActivity = createAsyncThunk('activity/loadCurrent', async () => {
   return window.api.getCurrentActivity()
+})
+
+export const loadPausedActivities = createAsyncThunk('activity/loadPaused', async () => {
+  return window.api.getPausedActivities()
 })
 
 export const loadHistory = createAsyncThunk('activity/loadHistory', async () => {
@@ -34,7 +40,26 @@ export const openActivity = createAsyncThunk(
     projectId: number
     projectName: string
   }) => {
-    return window.api.openActivity(taskId, taskName, projectId, projectName)
+    const current = await window.api.openActivity(taskId, taskName, projectId, projectName)
+    const paused = await window.api.getPausedActivities()
+    return { current, paused }
+  }
+)
+
+export const pauseActivity = createAsyncThunk(
+  'activity/pause',
+  async (activityId: string) => {
+    await window.api.pauseActivity(activityId)
+    return window.api.getPausedActivities()
+  }
+)
+
+export const resumeActivity = createAsyncThunk(
+  'activity/resume',
+  async (activityId: string) => {
+    const current = await window.api.resumeActivity(activityId)
+    const paused = await window.api.getPausedActivities()
+    return { current, paused }
   }
 )
 
@@ -54,11 +79,23 @@ const activitySlice = createSlice({
       .addCase(loadCurrentActivity.fulfilled, (state, action) => {
         state.current = action.payload
       })
+      .addCase(loadPausedActivities.fulfilled, (state, action) => {
+        state.paused = action.payload
+      })
       .addCase(loadHistory.fulfilled, (state, action) => {
         state.history = action.payload
       })
       .addCase(openActivity.fulfilled, (state, action) => {
-        state.current = action.payload
+        state.current = action.payload.current
+        state.paused = action.payload.paused
+      })
+      .addCase(pauseActivity.fulfilled, (state, action) => {
+        state.current = null
+        state.paused = action.payload
+      })
+      .addCase(resumeActivity.fulfilled, (state, action) => {
+        state.current = action.payload.current
+        state.paused = action.payload.paused
       })
       .addCase(closeActivity.pending, (state) => {
         state.closing = true

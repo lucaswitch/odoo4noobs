@@ -5,6 +5,17 @@ export interface Session {
   password: string
   uid: number
   userName: string
+  isAdmin: boolean
+}
+
+export interface TimesheetEntry {
+  id: number
+  name: string
+  date: string
+  unit_amount: number
+  project_id: [number, string] | false
+  task_id: [number, string] | false
+  user_id: [number, string] | false
 }
 
 export interface OdooProject {
@@ -32,6 +43,8 @@ export interface TrackedActivity {
   projectId: number
   projectName: string
   startedAt: string
+  pausedAt?: string
+  accumulatedMs: number
   closedAt?: string
   description?: string
   durationHours?: number

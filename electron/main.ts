@@ -134,7 +134,13 @@ ipcMain.handle('session:check', async () => {
   if (!session) return null
   try {
     const uid = await odoo.authenticate(session.url, session.db, session.login, session.password)
-    if (uid) return session
+    if (!uid) return null
+    // Backfill isAdmin for sessions stored before this feature
+    if (session.isAdmin === undefined) {
+      session.isAdmin = await odoo.checkIsAdmin(session.url, session.db, session.uid, session.password)
+      store.saveSession(session)
+    }
+    return session
   } catch {}
   return null
 })
@@ -146,12 +152,13 @@ ipcMain.handle('session:login', async (_e, url: string, login: string, password:
   const uid = await odoo.authenticate(url, db, login, password)
   if (!uid) throw new Error('Credenciais inválidas')
 
-  const users = await odoo.executeKw(url, db, uid as number, password, 'res.users', 'read', [[uid as number]], {
-    fields: ['name'],
-  })
+  const [users, isAdmin] = await Promise.all([
+    odoo.executeKw(url, db, uid as number, password, 'res.users', 'read', [[uid as number]], { fields: ['name'] }),
+    odoo.checkIsAdmin(url, db, uid as number, password),
+  ])
   const userName = users[0]?.name || login
 
-  const session = { url, db, login, password, uid: uid as number, userName }
+  const session = { url, db, login, password, uid: uid as number, userName, isAdmin }
   store.saveSession(session)
   return session
 })
@@ -200,6 +207,26 @@ ipcMain.handle('activity:open', (_e, taskId: number, taskName: string, projectId
   const activity = store.openActivity(taskId, taskName, projectId, projectName)
   scheduleReminder()
   return activity
+})
+
+ipcMain.handle('activity:pause', (_e, activityId: string) => {
+  clearReminders()
+  return store.pauseActivity(activityId)
+})
+
+ipcMain.handle('activity:resume', (_e, activityId: string) => {
+  const activity = store.resumeActivity(activityId)
+  scheduleReminder()
+  return activity
+})
+
+ipcMain.handle('activity:paused-list', () => store.getPausedActivities())
+
+// Timesheets (admin)
+ipcMain.handle('odoo:timesheets', async (_e, dateFrom: string, dateTo: string) => {
+  const s = store.loadSession()
+  if (!s) throw new Error('Sem sessão')
+  return odoo.getTimesheets(s.url, s.db, s.uid, s.password, dateFrom, dateTo)
 })
 
 ipcMain.handle('activity:close', async (_e, activityId: string, description: string) => {

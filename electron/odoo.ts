@@ -154,6 +154,51 @@ export async function getStages(
   })
 }
 
+export async function checkIsAdmin(
+  url: string,
+  db: string,
+  uid: number,
+  password: string
+): Promise<boolean> {
+  try {
+    const groups = await executeKw(url, db, uid, password, 'res.groups', 'search_read',
+      [[['category_id.name', '=', 'Administration']]],
+      { fields: ['id', 'name'] }
+    )
+    const adminGroupIds: number[] = groups
+      .filter((g: any) => ['Settings', 'Access Rights'].includes(g.name))
+      .map((g: any) => g.id)
+    if (!adminGroupIds.length) return false
+    const user = await executeKw(url, db, uid, password, 'res.users', 'read', [[uid]], {
+      fields: ['groups_id'],
+    })
+    const userGroups: number[] = user[0]?.groups_id || []
+    return adminGroupIds.some((id) => userGroups.includes(id))
+  } catch {
+    return false
+  }
+}
+
+export async function getTimesheets(
+  url: string,
+  db: string,
+  uid: number,
+  password: string,
+  dateFrom: string,
+  dateTo: string
+) {
+  const domain: any[] = [
+    ['project_id', '!=', false],
+    ['date', '>=', dateFrom],
+    ['date', '<=', dateTo],
+  ]
+  return executeKw(url, db, uid, password, 'account.analytic.line', 'search_read', [domain], {
+    fields: ['name', 'date', 'unit_amount', 'project_id', 'task_id', 'user_id'],
+    order: 'date desc, user_id asc',
+    limit: 1000,
+  })
+}
+
 export async function changeTaskStage(
   url: string,
   db: string,
