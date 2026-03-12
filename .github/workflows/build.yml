@@ -10,7 +10,26 @@ permissions:
   contents: write
 
 jobs:
-  build-mac:
+  build-mac-x64:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run build
+      - run: npx electron-builder --mac --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-x64-build
+          path: |
+            release/*.dmg
+            release/*.zip
+
+  build-mac-arm64:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,12 +38,12 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npm run build
-      - run: npx electron-builder --mac
+      - run: npx electron-builder --mac --arm64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
-          name: mac-build
+          name: mac-arm64-build
           path: |
             release/*.dmg
             release/*.zip
@@ -67,7 +86,7 @@ jobs:
             release/*.deb
 
   release:
-    needs: [build-mac, build-windows, build-linux]
+    needs: [build-mac-x64, build-mac-arm64, build-windows, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
@@ -77,14 +96,15 @@ jobs:
           merge-multiple: true
 
       - name: List artifacts
-        run: find artifacts -type f | head -20
+        run: find artifacts -type f | head -30
 
       - uses: softprops/action-gh-release@v2
         with:
           name: Odoo4Noobs ${{ github.ref_name }}
           body: |
             ## Downloads
-            - **macOS**: `.dmg` ou `.zip`
+            - **macOS Intel (x64)**: `-x64.dmg` ou `-x64.zip`
+            - **macOS Apple Silicon (arm64)**: `-arm64.dmg` ou `-arm64.zip`
             - **Windows**: `.exe` (installer)
             - **Linux**: `.AppImage` ou `.deb`
           files: |
