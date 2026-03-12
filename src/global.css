@@ -122,8 +122,12 @@ html, body, #root {
 }
 
 .sidebar-header {
-  padding: 20px 20px 16px;
+  padding: 16px 20px 16px;
   border-bottom: 1px solid var(--border);
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .sidebar-logo {
@@ -135,12 +139,16 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 10px;
+  overflow: visible;
 }
 
 .sidebar-logo-img {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-sm);
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
 }
 
 .sidebar-logo span {

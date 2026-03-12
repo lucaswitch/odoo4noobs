@@ -19,6 +19,7 @@ declare global {
       openActivity: (taskId: number, taskName: string, projectId: number, projectName: string) => Promise<any>
       closeActivity: (activityId: string, description: string) => Promise<any>
       getHistory: () => Promise<any[]>
+      onPausePrompt: (callback: () => void) => () => void
     }
   }
 }
@@ -26,7 +27,7 @@ declare global {
 export default function Login() {
   const dispatch = useAppDispatch()
   const { loading, error } = useAppSelector((s) => s.session)
-  const [url, setUrl] = useState('')
+  const [url, setUrl] = useState('https://odooardo.com.br')
   const [loginVal, setLoginVal] = useState('')
   const [password, setPassword] = useState('')
 
@@ -50,7 +51,7 @@ export default function Login() {
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://seu-odoo.com"
+            placeholder="https://odooardo.com.br"
             required
           />
         </div>

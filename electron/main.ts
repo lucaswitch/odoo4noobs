@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, Notification } from 'electron'
 import path from 'node:path'
 import * as odoo from './odoo'
 import * as store from './store'
@@ -7,6 +7,61 @@ process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true'
 
 let win: BrowserWindow | null = null
 let tray: Tray | null = null
+
+// ─── Activity reminder ────────────────────────────────────────────────────
+
+const REMINDER_FIRST_MS = 30 * 60 * 1000  // first alert after 30 min
+const REMINDER_REPEAT_MS = 60 * 60 * 1000 // then every 1 hour
+
+let reminderTimeout: ReturnType<typeof setTimeout> | null = null
+let reminderInterval: ReturnType<typeof setInterval> | null = null
+
+function clearReminders() {
+  if (reminderTimeout) { clearTimeout(reminderTimeout); reminderTimeout = null }
+  if (reminderInterval) { clearInterval(reminderInterval); reminderInterval = null }
+}
+
+function showActivityReminder(taskName: string) {
+  const n = new Notification({
+    title: 'Ainda trabalhando?',
+    body: `Você ainda está na atividade "${taskName}"?`,
+    actions: [
+      { type: 'button', text: 'Sim, continuar' },
+      { type: 'button', text: 'Não, pausar' },
+    ],
+    closeButtonText: 'Sim, continuar',
+  })
+
+  n.on('action', (_e, index) => {
+    if (index === 1) {
+      // "Não, pausar" — focus the window and trigger pause flow
+      if (win) { win.show(); win.focus() }
+      win?.webContents.send('activity:pause-prompt')
+    }
+  })
+
+  n.show()
+}
+
+function scheduleReminder() {
+  clearReminders()
+  const activity = store.getCurrentActivity()
+  if (!activity) return
+
+  const elapsed = Date.now() - new Date(activity.startedAt).getTime()
+  const firstDelay = Math.max(0, REMINDER_FIRST_MS - elapsed)
+
+  reminderTimeout = setTimeout(() => {
+    const current = store.getCurrentActivity()
+    if (current) showActivityReminder(current.taskName)
+
+    reminderInterval = setInterval(() => {
+      const current = store.getCurrentActivity()
+      if (current) showActivityReminder(current.taskName)
+      else clearReminders()
+    }, REMINDER_REPEAT_MS)
+  }, firstDelay)
+}
 
 function createTray() {
   // Use tray-icon.png (non-template) for color icon in status bar
@@ -65,6 +120,8 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow()
   createTray()
+  // Resume reminder if there's already an active activity (app restarted mid-task)
+  scheduleReminder()
 })
 
 app.on('window-all-closed', () => app.quit())
@@ -100,6 +157,7 @@ ipcMain.handle('session:login', async (_e, url: string, login: string, password:
 })
 
 ipcMain.handle('session:logout', () => {
+  clearReminders()
   store.clearSession()
   return true
 })
@@ -114,7 +172,7 @@ ipcMain.handle('odoo:projects', async () => {
 ipcMain.handle('odoo:tasks', async (_e, projectId?: number) => {
   const s = store.loadSession()
   if (!s) throw new Error('Sem sessão')
-  return odoo.getTasks(s.url, s.db, s.uid, s.password, projectId)
+  return odoo.getTasks(s.url, s.db, s.uid, s.password, projectId, s.uid)
 })
 
 ipcMain.handle('odoo:usernames', async (_e, userIds: number[]) => {
@@ -139,10 +197,13 @@ ipcMain.handle('odoo:changeStage', async (_e, taskId: number, stageId: number) =
 ipcMain.handle('activity:current', () => store.getCurrentActivity())
 
 ipcMain.handle('activity:open', (_e, taskId: number, taskName: string, projectId: number, projectName: string) => {
-  return store.openActivity(taskId, taskName, projectId, projectName)
+  const activity = store.openActivity(taskId, taskName, projectId, projectName)
+  scheduleReminder()
+  return activity
 })
 
 ipcMain.handle('activity:close', async (_e, activityId: string, description: string) => {
+  clearReminders()
   const activity = store.closeActivity(activityId, description)
   if (!activity) throw new Error('Atividade não encontrada')
 

@@ -102,9 +102,12 @@ export async function getTasks(
   db: string,
   uid: number,
   password: string,
-  projectId?: number
+  projectId?: number,
+  userId?: number
 ) {
-  const domain = projectId ? [['project_id', '=', projectId]] : []
+  const domain: any[] = []
+  if (projectId) domain.push(['project_id', '=', projectId])
+  if (userId) domain.push(['user_ids', 'in', [userId]])
   return executeKw(url, db, uid, password, 'project.task', 'search_read', [domain], {
     fields: ['name', 'project_id', 'stage_id', 'date_deadline', 'priority', 'kanban_state', 'user_ids'],
     order: 'priority desc, date_deadline asc, id desc',

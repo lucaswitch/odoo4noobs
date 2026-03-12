@@ -22,4 +22,11 @@ contextBridge.exposeInMainWorld('api', {
   closeActivity: (activityId: string, description: string) =>
     ipcRenderer.invoke('activity:close', activityId, description),
   getHistory: () => ipcRenderer.invoke('activity:history'),
+
+  // Notification-triggered pause
+  onPausePrompt: (callback: () => void) => {
+    const handler = () => callback()
+    ipcRenderer.on('activity:pause-prompt', handler)
+    return () => ipcRenderer.removeListener('activity:pause-prompt', handler)
+  },
 })

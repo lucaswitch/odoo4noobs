@@ -70,10 +70,6 @@ export default function Dashboard({ session, onLogout }: Props) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStageId, setSelectedStageId] = useState<number | null>(null)
 
-  // Stage change dropdown
-  const [stageDropdownTaskId, setStageDropdownTaskId] = useState<number | null>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-
   const fetchProjects = useCallback(async () => {
     try {
       const data = await window.api.getProjects()
@@ -92,15 +88,15 @@ export default function Dashboard({ session, onLogout }: Props) {
     }
   }, [])
 
-  const fetchTasks = useCallback(async (projectId?: number) => {
-    setLoading(true)
+  const fetchTasks = useCallback(async (projectId?: number, showLoading = true) => {
+    if (showLoading) setLoading(true)
     try {
       const data = await window.api.getTasks(projectId)
       setTasks(data)
     } catch (err) {
       console.error(err)
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }, [])
 
@@ -111,6 +107,20 @@ export default function Dashboard({ session, onLogout }: Props) {
     dispatch(loadCurrentActivity())
     dispatch(loadHistory())
   }, [fetchProjects, fetchTasks, fetchStages, dispatch])
+
+  // Notification-triggered pause prompt
+  useEffect(() => {
+    const cleanup = window.api.onPausePrompt(() => setShowCloseModal(true))
+    return cleanup
+  }, [])
+
+  // Auto-refresh tasks every 30s (silent, no loading spinner)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchTasks(selectedProject ?? undefined, false)
+    }, 30_000)
+    return () => clearInterval(interval)
+  }, [fetchTasks, selectedProject])
 
   // Timer
   useEffect(() => {
@@ -126,17 +136,6 @@ export default function Dashboard({ session, onLogout }: Props) {
       setElapsed('00:00:00')
     }
   }, [currentActivity])
-
-  // Close stage dropdown on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setStageDropdownTaskId(null)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
 
   const selectProject = (id: number | null) => {
     setSelectedProject(id)
@@ -381,52 +380,13 @@ export default function Dashboard({ session, onLogout }: Props) {
                 const stageName = t.stage_id ? t.stage_id[1] : '-'
                 const stageClass = classifyStage(stageName)
                 const isActive = currentActivity?.taskId === t.id && !currentActivity.closedAt
-                const isDropdownOpen = stageDropdownTaskId === t.id
-
                 return (
                   <div
                     key={t.id}
                     className={`task-card ${isActive ? 'is-active' : ''}`}
                     style={{ animationDelay: `${i * 30}ms` }}
                   >
-                    {/* Stage badge — clickable to change */}
-                    <div className="stage-wrapper" ref={isDropdownOpen ? dropdownRef : undefined}>
-                      <button
-                        className={`task-stage clickable ${stageClass}`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setStageDropdownTaskId(isDropdownOpen ? null : t.id)
-                        }}
-                        title="Clique para mudar o status"
-                      >
-                        {stageName}
-                        <span className="stage-chevron">▾</span>
-                      </button>
-
-                      {isDropdownOpen && (
-                        <div className="stage-dropdown">
-                          {stages.map((s) => (
-                            <button
-                              key={s.id}
-                              className={`stage-dropdown-item ${
-                                t.stage_id && t.stage_id[0] === s.id ? 'current' : ''
-                              } ${classifyStage(s.name)}`}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (!t.stage_id || t.stage_id[0] !== s.id) {
-                                  handleChangeStage(t.id, s.id)
-                                }
-                              }}
-                            >
-                              {s.name}
-                              {t.stage_id && t.stage_id[0] === s.id && (
-                                <span className="check-mark">✓</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <span className={`task-stage ${stageClass}`}>{stageName}</span>
 
                     <div className="task-info">
                       <div className="task-name">{t.name}</div>
