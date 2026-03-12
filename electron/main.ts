@@ -222,6 +222,30 @@ ipcMain.handle('activity:resume', (_e, activityId: string) => {
 
 ipcMain.handle('activity:paused-list', () => store.getPausedActivities())
 
+// Internal users list (for analytics)
+ipcMain.handle('odoo:internal-users', async () => {
+  const s = store.loadSession()
+  if (!s) throw new Error('Sem sessão')
+  return odoo.getInternalUsers(s.url, s.db, s.uid, s.password)
+})
+
+// User avatars for task cards
+ipcMain.handle('odoo:user-avatars', async (_e, userIds: number[]) => {
+  const s = store.loadSession()
+  if (!s) throw new Error('Sem sessão')
+  return odoo.getUsersWithAvatars(s.url, s.db, s.uid, s.password, userIds)
+})
+
+// Who is doing what (all users, no filter)
+ipcMain.handle('odoo:users-activity', async () => {
+  const s = store.loadSession()
+  if (!s) throw new Error('Sem sessão')
+  const tasks = await odoo.getTasks(s.url, s.db, s.uid, s.password)
+  const userIds: number[] = [...new Set<number>(tasks.flatMap((t: any) => t.user_ids as number[]))]
+  const users = await odoo.getUsersWithAvatars(s.url, s.db, s.uid, s.password, userIds)
+  return { tasks, users }
+})
+
 // Timesheets (admin)
 ipcMain.handle('odoo:timesheets', async (_e, dateFrom: string, dateTo: string) => {
   const s = store.loadSession()

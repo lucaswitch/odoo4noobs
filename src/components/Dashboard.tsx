@@ -60,6 +60,8 @@ export default function Dashboard({ session, onLogout }: Props) {
   const [projects, setProjects] = useState<OdooProject[]>([])
   const [tasks, setTasks] = useState<OdooTask[]>([])
   const [stages, setStages] = useState<Stage[]>([])
+  const [userAvatars, setUserAvatars] = useState<Record<number, { name: string; avatar: string | false }>>({})
+
   const [selectedProject, setSelectedProject] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState('00:00:00')
   const [showCloseModal, setShowCloseModal] = useState(false)
@@ -95,6 +97,15 @@ export default function Dashboard({ session, onLogout }: Props) {
     try {
       const data = await window.api.getTasks(projectId)
       setTasks(data)
+      // Fetch avatars for all unique assigned users
+      const ids = [...new Set<number>(data.flatMap((t: OdooTask) => t.user_ids))]
+      if (ids.length) {
+        window.api.getUserAvatars(ids).then((users: any[]) => {
+          const map: Record<number, { name: string; avatar: string | false }> = {}
+          for (const u of users) map[u.id] = { name: u.name, avatar: u.image_128 || false }
+          setUserAvatars(map)
+        })
+      }
     } catch (err) {
       console.error(err)
     } finally {
@@ -263,19 +274,15 @@ export default function Dashboard({ session, onLogout }: Props) {
           </div>
         </div>
 
-        {session.isAdmin && (
-          <>
-            <div className="sidebar-section">Admin</div>
-            <div className="sidebar-list" style={{ marginBottom: 4 }}>
-              <div
-                className={`sidebar-item ${view === 'control' ? 'active' : ''}`}
-                onClick={() => setView('control')}
-              >
-                ◈ Controle
-              </div>
-            </div>
-          </>
-        )}
+        <div className="sidebar-section">Escritório</div>
+        <div className="sidebar-list" style={{ marginBottom: 4 }}>
+          <div
+            className={`sidebar-item ${view === 'control' ? 'active' : ''}`}
+            onClick={() => setView('control')}
+          >
+            ◈ Controle
+          </div>
+        </div>
 
         <div className="sidebar-section">Projetos</div>
         <div className="sidebar-list">
@@ -451,6 +458,17 @@ export default function Dashboard({ session, onLogout }: Props) {
                         {t.date_deadline ? ` · ${t.date_deadline}` : ''}
                       </div>
                     </div>
+                    {t.user_ids.length > 0 && (
+                      <div className="task-avatars">
+                        {t.user_ids.slice(0, 3).map((uid) => {
+                          const u = userAvatars[uid]
+                          return u?.avatar
+                            ? <img key={uid} className="task-avatar-mini" src={`data:image/png;base64,${u.avatar}`} title={u.name} />
+                            : <span key={uid} className="task-avatar-mini task-avatar-mini-initials" title={u?.name ?? ''}>{(u?.name ?? '?').slice(0, 2).toUpperCase()}</span>
+                        })}
+                      </div>
+                    )}
+
                     <div className="task-actions">
                       {!isActive && stageClass !== 'stage-done' && (
                         <button

@@ -22,6 +22,9 @@ declare global {
       resumeActivity: (activityId: string) => Promise<any>
       closeActivity: (activityId: string, description: string) => Promise<any>
       getHistory: () => Promise<any[]>
+      getInternalUsers: () => Promise<any[]>
+      getUserAvatars: (userIds: number[]) => Promise<any[]>
+      getUsersActivity: () => Promise<{ tasks: any[]; users: any[] }>
       getTimesheets: (dateFrom: string, dateTo: string) => Promise<any[]>
       onPausePrompt: (callback: () => void) => () => void
     }

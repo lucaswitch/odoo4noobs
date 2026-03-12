@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld('api', {
   getHistory: () => ipcRenderer.invoke('activity:history'),
 
   // Admin
+  getInternalUsers: () => ipcRenderer.invoke('odoo:internal-users'),
+  getUserAvatars: (userIds: number[]) => ipcRenderer.invoke('odoo:user-avatars', userIds),
+  getUsersActivity: () => ipcRenderer.invoke('odoo:users-activity'),
   getTimesheets: (dateFrom: string, dateTo: string) =>
     ipcRenderer.invoke('odoo:timesheets', dateFrom, dateTo),
 

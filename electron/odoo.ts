@@ -154,6 +154,31 @@ export async function getStages(
   })
 }
 
+export async function getInternalUsers(
+  url: string,
+  db: string,
+  uid: number,
+  password: string
+) {
+  return executeKw(url, db, uid, password, 'res.users', 'search_read',
+    [[['share', '=', false], ['active', '=', true]]],
+    { fields: ['name', 'image_128'] }
+  )
+}
+
+export async function getUsersWithAvatars(
+  url: string,
+  db: string,
+  uid: number,
+  password: string,
+  userIds: number[]
+) {
+  if (!userIds.length) return []
+  return executeKw(url, db, uid, password, 'res.users', 'read', [userIds], {
+    fields: ['name', 'image_128'],
+  })
+}
+
 export async function checkIsAdmin(
   url: string,
   db: string,
