@@ -40,6 +40,9 @@
   "build": {
     "appId": "com.odoogugu.app",
     "productName": "Odoo4Noobs",
+    "asar": true,
+    "compression": "maximum",
+    "electronLanguages": ["pt-BR", "en-US"],
     "directories": {
       "output": "release"
     },
@@ -50,23 +53,20 @@
     "publish": null,
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        "dmg"
       ],
       "icon": "build/icon.icns",
       "category": "public.app-category.productivity"
     },
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        "nsis"
       ],
       "icon": "build/icon.ico"
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb"
+        "AppImage"
       ],
       "icon": "build/icon.png",
       "category": "Office",

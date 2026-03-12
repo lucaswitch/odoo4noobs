@@ -27,7 +27,6 @@ jobs:
           name: mac-x64-build
           path: |
             release/*.dmg
-            release/*.zip
 
   build-mac-arm64:
     runs-on: macos-latest
@@ -46,7 +45,6 @@ jobs:
           name: mac-arm64-build
           path: |
             release/*.dmg
-            release/*.zip
 
   build-windows:
     runs-on: windows-latest
@@ -83,7 +81,6 @@ jobs:
           name: linux-build
           path: |
             release/*.AppImage
-            release/*.deb
 
   release:
     needs: [build-mac-x64, build-mac-arm64, build-windows, build-linux]
@@ -103,15 +100,13 @@ jobs:
           name: Odoo4Noobs ${{ github.ref_name }}
           body: |
             ## Downloads
-            - **macOS Intel (x64)**: `-x64.dmg` ou `-x64.zip`
-            - **macOS Apple Silicon (arm64)**: `-arm64.dmg` ou `-arm64.zip`
+            - **macOS Intel (x64)**: `-x64.dmg`
+            - **macOS Apple Silicon (arm64)**: `-arm64.dmg`
             - **Windows**: `.exe` (installer)
-            - **Linux**: `.AppImage` ou `.deb`
+            - **Linux**: `.AppImage`
           files: |
             artifacts/**/*.dmg
-            artifacts/**/*.zip
             artifacts/**/*.exe
             artifacts/**/*.AppImage
-            artifacts/**/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
