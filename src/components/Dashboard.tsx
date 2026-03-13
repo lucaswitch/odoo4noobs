@@ -3,6 +3,7 @@ import { useAppSelector, useAppDispatch } from '../store/hooks'
 import { loadCurrentActivity, loadPausedActivities, loadHistory, openActivity, pauseActivity, resumeActivity, closeActivity } from '../store/activitySlice'
 import type { Session, OdooProject, OdooTask } from '../types'
 import CloseModal from './CloseModal'
+import NewTaskModal from './NewTaskModal'
 import Control from './Control'
 import logoImg from '../assets/logo.png'
 
@@ -26,31 +27,15 @@ function formatDuration(ms: number): string {
 }
 
 function classifyStage(name: string): string {
-  const lower = name.toLowerCase()
-  if (isStageDone(lower)) return 'stage-done'
-  if (isStageDoing(lower)) return 'stage-doing'
-  if (isStageTodo(lower)) return 'stage-todo'
-  return 'stage-default'
-}
-
-function isStageTodo(name: string): boolean {
-  const l = name.toLowerCase()
-  return l.includes('fazer') || l.includes('todo') || l.includes('novo') || l.includes('new')
-}
-
-function isStageDoing(name: string): boolean {
-  const l = name.toLowerCase()
-  return l.includes('fazendo') || l.includes('doing') || l.includes('progress') || l.includes('andamento')
-}
-
-function isStageDone(name: string): boolean {
-  const l = name.toLowerCase()
-  return l.includes('feit') || l.includes('done') || l.includes('conclu')
+  const upper = name.toUpperCase().trim()
+  if (upper === 'FEITO') return 'stage-done'
+  if (upper === 'FAZENDO') return 'stage-doing'
+  return 'stage-todo'
 }
 
 function findStageByType(stages: Stage[], type: 'todo' | 'doing' | 'done'): Stage | undefined {
-  const check = type === 'todo' ? isStageTodo : type === 'doing' ? isStageDoing : isStageDone
-  return stages.find((s) => check(s.name))
+  const cssClass = type === 'todo' ? 'stage-todo' : type === 'doing' ? 'stage-doing' : 'stage-done'
+  return stages.find((s) => classifyStage(s.name) === cssClass)
 }
 
 export default function Dashboard({ session, onLogout }: Props) {
@@ -61,10 +46,13 @@ export default function Dashboard({ session, onLogout }: Props) {
   const [tasks, setTasks] = useState<OdooTask[]>([])
   const [stages, setStages] = useState<Stage[]>([])
   const [userAvatars, setUserAvatars] = useState<Record<number, { name: string; avatar: string | false }>>({})
+  const [allTags, setAllTags] = useState<Record<number, string>>({})
 
   const [selectedProject, setSelectedProject] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState('00:00:00')
   const [showCloseModal, setShowCloseModal] = useState(false)
+  const [showNewTaskModal, setShowNewTaskModal] = useState(false)
+  const [editingTask, setEditingTask] = useState<OdooTask | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'tasks' | 'history'>('tasks')
   const [view, setView] = useState<'tasks' | 'control'>('tasks')
@@ -120,6 +108,11 @@ export default function Dashboard({ session, onLogout }: Props) {
     dispatch(loadCurrentActivity())
     dispatch(loadPausedActivities())
     dispatch(loadHistory())
+    window.api.getTags().then((tags: { id: number; name: string }[]) => {
+      const map: Record<number, string> = {}
+      for (const t of tags) map[t.id] = t.name
+      setAllTags(map)
+    })
   }, [fetchProjects, fetchTasks, fetchStages, dispatch])
 
   // Notification-triggered pause prompt
@@ -151,6 +144,19 @@ export default function Dashboard({ session, onLogout }: Props) {
       setElapsed('00:00:00')
     }
   }, [currentActivity])
+
+  const handleCreateTask = async (name: string, projectId: number, stageId: number, tagIds: number[]) => {
+    await window.api.createTask(name, projectId, stageId, tagIds)
+    setShowNewTaskModal(false)
+    fetchTasks(selectedProject ?? undefined)
+  }
+
+  const handleEditTask = async (name: string, projectId: number, stageId: number, tagIds: number[]) => {
+    if (!editingTask) return
+    await window.api.updateTask(editingTask.id, name, projectId, stageId, tagIds)
+    setEditingTask(null)
+    fetchTasks(selectedProject ?? undefined)
+  }
 
   const selectProject = (id: number | null) => {
     setSelectedProject(id)
@@ -410,6 +416,13 @@ export default function Dashboard({ session, onLogout }: Props) {
 
         {/* Tabs */}
         <div className="tab-bar">
+          <button
+            className="btn-refresh"
+            onClick={() => { fetchProjects(); fetchTasks(selectedProject ?? undefined) }}
+            title="Atualizar tarefas"
+          >
+            ↻
+          </button>
           <div className={`tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>
             Tarefas
           </div>
@@ -422,6 +435,13 @@ export default function Dashboard({ session, onLogout }: Props) {
           >
             Histórico
           </div>
+          <button
+            className="btn-new-task"
+            onClick={() => setShowNewTaskModal(true)}
+            title="Nova tarefa"
+          >
+            +
+          </button>
         </div>
 
         {tab === 'tasks' && (
@@ -456,6 +476,14 @@ export default function Dashboard({ session, onLogout }: Props) {
                       <div className="task-meta">
                         {t.project_id ? t.project_id[1] : '—'}
                         {t.date_deadline ? ` · ${t.date_deadline}` : ''}
+                      </div>
+                      <div className="task-tags">
+                        {t.tag_ids.length === 0
+                          ? <span className="task-tag-warning">⚠ Sem tag</span>
+                          : t.tag_ids.map((id) => (
+                              <span key={id} className="task-tag">{allTags[id] ?? id}</span>
+                            ))
+                        }
                       </div>
                     </div>
                     {t.user_ids.length > 0 && (
@@ -494,6 +522,16 @@ export default function Dashboard({ session, onLogout }: Props) {
                           ✓
                         </button>
                       )}
+                      <button
+                        className="task-edit-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditingTask(t)
+                        }}
+                        title="Editar tarefa"
+                      >
+                        ✎
+                      </button>
                     </div>
                   </div>
                 )
@@ -532,6 +570,26 @@ export default function Dashboard({ session, onLogout }: Props) {
           </div>
         )}
       </main>}
+
+      {/* New task modal */}
+      {showNewTaskModal && (
+        <NewTaskModal
+          projects={projects}
+          defaultProjectId={selectedProject ?? undefined}
+          onConfirm={handleCreateTask}
+          onCancel={() => setShowNewTaskModal(false)}
+        />
+      )}
+
+      {/* Edit task modal */}
+      {editingTask && (
+        <NewTaskModal
+          projects={projects}
+          task={editingTask}
+          onConfirm={handleEditTask}
+          onCancel={() => setEditingTask(null)}
+        />
+      )}
 
       {/* Close modal */}
       {showCloseModal && currentActivity && (

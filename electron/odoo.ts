@@ -91,10 +91,21 @@ export async function executeKw(
 }
 
 export async function getProjects(url: string, db: string, uid: number, password: string) {
-  return executeKw(url, db, uid, password, 'project.project', 'search_read', [[]], {
-    fields: ['name', 'task_count', 'user_id'],
-    order: 'name asc',
-  })
+  const [projects, groups] = await Promise.all([
+    executeKw(url, db, uid, password, 'project.project', 'search_read', [[]], {
+      fields: ['name', 'user_id'],
+      order: 'name asc',
+    }),
+    executeKw(url, db, uid, password, 'project.task', 'read_group',
+      [[['active', '=', true], ['user_ids', 'in', [uid]]]],
+      { fields: ['project_id'], groupby: ['project_id'] }
+    ),
+  ])
+  const countByProject: Record<number, number> = {}
+  for (const g of groups) {
+    if (g.project_id) countByProject[g.project_id[0]] = g.project_id_count
+  }
+  return projects.map((p: any) => ({ ...p, task_count: countByProject[p.id] ?? 0 }))
 }
 
 export async function getTasks(
@@ -109,7 +120,7 @@ export async function getTasks(
   if (projectId) domain.push(['project_id', '=', projectId])
   if (userId) domain.push(['user_ids', 'in', [userId]])
   return executeKw(url, db, uid, password, 'project.task', 'search_read', [domain], {
-    fields: ['name', 'project_id', 'stage_id', 'date_deadline', 'priority', 'kanban_state', 'user_ids'],
+    fields: ['name', 'project_id', 'stage_id', 'date_deadline', 'priority', 'kanban_state', 'user_ids', 'tag_ids'],
     order: 'priority desc, date_deadline asc, id desc',
   })
 }
@@ -233,6 +244,45 @@ export async function changeTaskStage(
   stageId: number
 ): Promise<boolean> {
   return executeKw(url, db, uid, password, 'project.task', 'write', [[taskId], { stage_id: stageId }])
+}
+
+export async function getTags(url: string, db: string, uid: number, password: string) {
+  return executeKw(url, db, uid, password, 'project.tags', 'search_read', [[]], {
+    fields: ['name'],
+    order: 'name asc',
+  })
+}
+
+export async function createTask(
+  url: string,
+  db: string,
+  uid: number,
+  password: string,
+  name: string,
+  projectId: number,
+  stageId: number,
+  tagIds: number[]
+): Promise<number> {
+  return executeKw(url, db, uid, password, 'project.task', 'create', [
+    { name, project_id: projectId, stage_id: stageId, tag_ids: [[6, 0, tagIds]] },
+  ])
+}
+
+export async function updateTask(
+  url: string,
+  db: string,
+  uid: number,
+  password: string,
+  taskId: number,
+  name: string,
+  projectId: number,
+  stageId: number,
+  tagIds: number[]
+): Promise<boolean> {
+  return executeKw(url, db, uid, password, 'project.task', 'write', [
+    [taskId],
+    { name, project_id: projectId, stage_id: stageId, tag_ids: [[6, 0, tagIds]] },
+  ])
 }
 
 export async function createTimesheet(

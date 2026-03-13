@@ -34,6 +34,12 @@ export interface OdooTask {
   priority: string
   kanban_state: string
   user_ids: number[]
+  tag_ids: number[]
+}
+
+export interface OdooTag {
+  id: number
+  name: string
 }
 
 export interface TrackedActivity {

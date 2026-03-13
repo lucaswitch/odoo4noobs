@@ -14,6 +14,11 @@ contextBridge.exposeInMainWorld('api', {
   getStages: (projectId?: number) => ipcRenderer.invoke('odoo:stages', projectId),
   changeTaskStage: (taskId: number, stageId: number) =>
     ipcRenderer.invoke('odoo:changeStage', taskId, stageId),
+  getTags: () => ipcRenderer.invoke('odoo:tags'),
+  createTask: (name: string, projectId: number, stageId: number, tagIds: number[]) =>
+    ipcRenderer.invoke('odoo:createTask', name, projectId, stageId, tagIds),
+  updateTask: (taskId: number, name: string, projectId: number, stageId: number, tagIds: number[]) =>
+    ipcRenderer.invoke('odoo:updateTask', taskId, name, projectId, stageId, tagIds),
 
   // Activity tracking
   getCurrentActivity: () => ipcRenderer.invoke('activity:current'),
