@@ -1044,10 +1044,6 @@ html, body, #root {
   color: var(--success);
 }
 
-.stage-default {
-  background: var(--bg-base);
-  color: var(--text-secondary);
-}
 
 .task-info {
   flex: 1;
@@ -1068,6 +1064,29 @@ html, body, #root {
   color: var(--text-muted);
   margin-top: 2px;
   font-family: var(--font-mono);
+}
+
+.task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.task-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.task-tag-warning {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.5;
 }
 
 .task-actions {
@@ -1119,6 +1138,29 @@ html, body, #root {
 .task-done-btn:hover {
   background: var(--success-dim);
   border-color: var(--success);
+  transform: scale(1.1);
+}
+
+.task-edit-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.task-edit-btn:hover {
+  background: var(--accent-cyan-dim);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
   transform: scale(1.1);
 }
 
@@ -1174,7 +1216,8 @@ html, body, #root {
   margin-bottom: 6px;
 }
 
-.field input {
+.field input,
+.field select {
   width: 100%;
   padding: 10px 14px;
   background: var(--bg-base);
@@ -1185,9 +1228,11 @@ html, body, #root {
   font-size: 13px;
   outline: none;
   transition: border-color 0.2s;
+  appearance: none;
 }
 
-.field input:focus {
+.field input:focus,
+.field select:focus {
   border-color: var(--accent-amber-dim);
 }
 
@@ -1483,6 +1528,87 @@ html, body, #root {
 .tab.active {
   color: var(--accent-amber);
   border-bottom-color: var(--accent-amber);
+}
+
+/* Refresh button */
+.btn-refresh {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  padding: 0 10px;
+  transition: color 0.15s;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-refresh:hover {
+  color: var(--accent-amber);
+}
+
+/* New task button */
+.btn-new-task {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  padding: 0 10px;
+  transition: color 0.15s;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+
+.btn-new-task:hover {
+  color: var(--accent-amber);
+}
+
+/* Tag selector in modal */
+/* Tag chips (selected tags) */
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-amber-glow);
+  border: 1px solid var(--accent-amber);
+  color: var(--accent-amber);
+}
+
+.tag-chip button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  opacity: 0.7;
+}
+
+.tag-chip button:hover {
+  opacity: 1;
 }
 
 /* Search box */

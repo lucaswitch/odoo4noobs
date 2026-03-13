@@ -15,6 +15,9 @@ declare global {
       getUserNames: (ids: number[]) => Promise<Record<number, string>>
       getStages: (projectId?: number) => Promise<any[]>
       changeTaskStage: (taskId: number, stageId: number) => Promise<boolean>
+      getTags: () => Promise<any[]>
+      createTask: (name: string, projectId: number, stageId: number, tagIds: number[]) => Promise<number>
+      updateTask: (taskId: number, name: string, projectId: number, stageId: number, tagIds: number[]) => Promise<boolean>
       getCurrentActivity: () => Promise<any>
       getPausedActivities: () => Promise<any[]>
       openActivity: (taskId: number, taskName: string, projectId: number, projectName: string) => Promise<any>

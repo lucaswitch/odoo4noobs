@@ -200,6 +200,24 @@ ipcMain.handle('odoo:changeStage', async (_e, taskId: number, stageId: number) =
   return odoo.changeTaskStage(s.url, s.db, s.uid, s.password, taskId, stageId)
 })
 
+ipcMain.handle('odoo:tags', async () => {
+  const s = store.loadSession()
+  if (!s) throw new Error('Sem sessão')
+  return odoo.getTags(s.url, s.db, s.uid, s.password)
+})
+
+ipcMain.handle('odoo:createTask', async (_e, name: string, projectId: number, stageId: number, tagIds: number[]) => {
+  const s = store.loadSession()
+  if (!s) throw new Error('Sem sessão')
+  return odoo.createTask(s.url, s.db, s.uid, s.password, name, projectId, stageId, tagIds)
+})
+
+ipcMain.handle('odoo:updateTask', async (_e, taskId: number, name: string, projectId: number, stageId: number, tagIds: number[]) => {
+  const s = store.loadSession()
+  if (!s) throw new Error('Sem sessão')
+  return odoo.updateTask(s.url, s.db, s.uid, s.password, taskId, name, projectId, stageId, tagIds)
+})
+
 // Activity tracking
 ipcMain.handle('activity:current', () => store.getCurrentActivity())
 
