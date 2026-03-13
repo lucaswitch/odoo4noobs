@@ -102,9 +102,12 @@ export async function getTasks(
   db: string,
   uid: number,
   password: string,
-  projectId?: number
+  projectId?: number,
+  userId?: number
 ) {
-  const domain = projectId ? [['project_id', '=', projectId]] : []
+  const domain: any[] = []
+  if (projectId) domain.push(['project_id', '=', projectId])
+  if (userId) domain.push(['user_ids', 'in', [userId]])
   return executeKw(url, db, uid, password, 'project.task', 'search_read', [domain], {
     fields: ['name', 'project_id', 'stage_id', 'date_deadline', 'priority', 'kanban_state', 'user_ids'],
     order: 'priority desc, date_deadline asc, id desc',
@@ -148,6 +151,76 @@ export async function getStages(
   return executeKw(url, db, uid, password, 'project.task.type', 'search_read', [domain], {
     fields: ['name', 'sequence'],
     order: 'sequence asc',
+  })
+}
+
+export async function getInternalUsers(
+  url: string,
+  db: string,
+  uid: number,
+  password: string
+) {
+  return executeKw(url, db, uid, password, 'res.users', 'search_read',
+    [[['share', '=', false], ['active', '=', true]]],
+    { fields: ['name', 'image_128'] }
+  )
+}
+
+export async function getUsersWithAvatars(
+  url: string,
+  db: string,
+  uid: number,
+  password: string,
+  userIds: number[]
+) {
+  if (!userIds.length) return []
+  return executeKw(url, db, uid, password, 'res.users', 'read', [userIds], {
+    fields: ['name', 'image_128'],
+  })
+}
+
+export async function checkIsAdmin(
+  url: string,
+  db: string,
+  uid: number,
+  password: string
+): Promise<boolean> {
+  try {
+    const groups = await executeKw(url, db, uid, password, 'res.groups', 'search_read',
+      [[['category_id.name', '=', 'Administration']]],
+      { fields: ['id', 'name'] }
+    )
+    const adminGroupIds: number[] = groups
+      .filter((g: any) => ['Settings', 'Access Rights'].includes(g.name))
+      .map((g: any) => g.id)
+    if (!adminGroupIds.length) return false
+    const user = await executeKw(url, db, uid, password, 'res.users', 'read', [[uid]], {
+      fields: ['groups_id'],
+    })
+    const userGroups: number[] = user[0]?.groups_id || []
+    return adminGroupIds.some((id) => userGroups.includes(id))
+  } catch {
+    return false
+  }
+}
+
+export async function getTimesheets(
+  url: string,
+  db: string,
+  uid: number,
+  password: string,
+  dateFrom: string,
+  dateTo: string
+) {
+  const domain: any[] = [
+    ['project_id', '!=', false],
+    ['date', '>=', dateFrom],
+    ['date', '<=', dateTo],
+  ]
+  return executeKw(url, db, uid, password, 'account.analytic.line', 'search_read', [domain], {
+    fields: ['name', 'date', 'unit_amount', 'project_id', 'task_id', 'user_id'],
+    order: 'date desc, user_id asc',
+    limit: 1000,
   })
 }
 

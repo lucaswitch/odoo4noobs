@@ -10,24 +10,47 @@ permissions:
   contents: write
 
 jobs:
-  build-mac:
+  build-mac-x64:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Clean npm cache
+        run: npm cache clean --force
       - run: npm install
+      - name: Sync version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npm version --no-git-tag-version --allow-same-version ${GITHUB_REF_NAME#v}
       - run: npm run build
-      - run: npx electron-builder --mac
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npx electron-builder --mac --x64 --publish never
       - uses: actions/upload-artifact@v4
         with:
-          name: mac-build
+          name: mac-x64-build
           path: |
             release/*.dmg
-            release/*.zip
+
+  build-mac-arm64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Clean npm cache
+        run: npm cache clean --force
+      - run: npm install
+      - name: Sync version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npm version --no-git-tag-version --allow-same-version ${GITHUB_REF_NAME#v}
+      - run: npm run build
+      - run: npx electron-builder --mac --arm64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-arm64-build
+          path: |
+            release/*.dmg
 
   build-windows:
     runs-on: windows-latest
@@ -36,11 +59,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Clean npm cache
+        run: npm cache clean --force
       - run: npm install
+      - name: Sync version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: npm version --no-git-tag-version --allow-same-version ${GITHUB_REF_NAME#v}
       - run: npm run build
-      - run: npx electron-builder --win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npx electron-builder --win --publish never
       - uses: actions/upload-artifact@v4
         with:
           name: windows-build
@@ -54,11 +81,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Clean npm cache
+        run: npm cache clean --force
       - run: npm install
+      - name: Sync version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npm version --no-git-tag-version --allow-same-version ${GITHUB_REF_NAME#v}
       - run: npm run build
-      - run: npx electron-builder --linux
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npx electron-builder --linux --publish never
       - uses: actions/upload-artifact@v4
         with:
           name: linux-build
@@ -67,7 +97,7 @@ jobs:
             release/*.deb
 
   release:
-    needs: [build-mac, build-windows, build-linux]
+    needs: [build-mac-x64, build-mac-arm64, build-windows, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
@@ -77,19 +107,19 @@ jobs:
           merge-multiple: true
 
       - name: List artifacts
-        run: find artifacts -type f | head -20
+        run: find artifacts -type f | head -30
 
       - uses: softprops/action-gh-release@v2
         with:
           name: Odoo4Noobs ${{ github.ref_name }}
           body: |
             ## Downloads
-            - **macOS**: `.dmg` ou `.zip`
+            - **macOS Intel (x64)**: `-x64.dmg`
+            - **macOS Apple Silicon (arm64)**: `-arm64.dmg`
             - **Windows**: `.exe` (installer)
             - **Linux**: `.AppImage` ou `.deb`
           files: |
             artifacts/**/*.dmg
-            artifacts/**/*.zip
             artifacts/**/*.exe
             artifacts/**/*.AppImage
             artifacts/**/*.deb

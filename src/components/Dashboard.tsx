@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useAppSelector, useAppDispatch } from '../store/hooks'
-import { loadCurrentActivity, loadHistory, openActivity, closeActivity } from '../store/activitySlice'
+import { loadCurrentActivity, loadPausedActivities, loadHistory, openActivity, pauseActivity, resumeActivity, closeActivity } from '../store/activitySlice'
 import type { Session, OdooProject, OdooTask } from '../types'
 import CloseModal from './CloseModal'
+import Control from './Control'
 import logoImg from '../assets/logo.png'
 
 interface Props {
@@ -54,25 +55,24 @@ function findStageByType(stages: Stage[], type: 'todo' | 'doing' | 'done'): Stag
 
 export default function Dashboard({ session, onLogout }: Props) {
   const dispatch = useAppDispatch()
-  const { current: currentActivity, history } = useAppSelector((s) => s.activity)
+  const { current: currentActivity, paused: pausedActivities, history } = useAppSelector((s) => s.activity)
 
   const [projects, setProjects] = useState<OdooProject[]>([])
   const [tasks, setTasks] = useState<OdooTask[]>([])
   const [stages, setStages] = useState<Stage[]>([])
+  const [userAvatars, setUserAvatars] = useState<Record<number, { name: string; avatar: string | false }>>({})
+
   const [selectedProject, setSelectedProject] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState('00:00:00')
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'tasks' | 'history'>('tasks')
+  const [view, setView] = useState<'tasks' | 'control'>('tasks')
   const timerRef = useRef<ReturnType<typeof setInterval>>()
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStageId, setSelectedStageId] = useState<number | null>(null)
-
-  // Stage change dropdown
-  const [stageDropdownTaskId, setStageDropdownTaskId] = useState<number | null>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -92,15 +92,24 @@ export default function Dashboard({ session, onLogout }: Props) {
     }
   }, [])
 
-  const fetchTasks = useCallback(async (projectId?: number) => {
-    setLoading(true)
+  const fetchTasks = useCallback(async (projectId?: number, showLoading = true) => {
+    if (showLoading) setLoading(true)
     try {
       const data = await window.api.getTasks(projectId)
       setTasks(data)
+      // Fetch avatars for all unique assigned users
+      const ids = [...new Set<number>(data.flatMap((t: OdooTask) => t.user_ids))]
+      if (ids.length) {
+        window.api.getUserAvatars(ids).then((users: any[]) => {
+          const map: Record<number, { name: string; avatar: string | false }> = {}
+          for (const u of users) map[u.id] = { name: u.name, avatar: u.image_128 || false }
+          setUserAvatars(map)
+        })
+      }
     } catch (err) {
       console.error(err)
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }, [])
 
@@ -109,14 +118,30 @@ export default function Dashboard({ session, onLogout }: Props) {
     fetchTasks()
     fetchStages()
     dispatch(loadCurrentActivity())
+    dispatch(loadPausedActivities())
     dispatch(loadHistory())
   }, [fetchProjects, fetchTasks, fetchStages, dispatch])
+
+  // Notification-triggered pause prompt
+  useEffect(() => {
+    const cleanup = window.api.onPausePrompt(() => setShowCloseModal(true))
+    return cleanup
+  }, [])
+
+  // Auto-refresh tasks every 30s (silent, no loading spinner)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchTasks(selectedProject ?? undefined, false)
+    }, 30_000)
+    return () => clearInterval(interval)
+  }, [fetchTasks, selectedProject])
 
   // Timer
   useEffect(() => {
     if (currentActivity && !currentActivity.closedAt) {
       const update = () => {
-        const ms = Date.now() - new Date(currentActivity.startedAt).getTime()
+        const sessionMs = Date.now() - new Date(currentActivity.startedAt).getTime()
+        const ms = (currentActivity.accumulatedMs || 0) + sessionMs
         setElapsed(formatDuration(ms))
       }
       update()
@@ -126,17 +151,6 @@ export default function Dashboard({ session, onLogout }: Props) {
       setElapsed('00:00:00')
     }
   }, [currentActivity])
-
-  // Close stage dropdown on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setStageDropdownTaskId(null)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
 
   const selectProject = (id: number | null) => {
     setSelectedProject(id)
@@ -157,6 +171,15 @@ export default function Dashboard({ session, onLogout }: Props) {
     }
 
     dispatch(openActivity({ taskId: task.id, taskName: task.name, projectId: projId, projectName: projName }))
+  }
+
+  const handlePause = () => {
+    if (!currentActivity) return
+    dispatch(pauseActivity(currentActivity.id))
+  }
+
+  const handleResume = (activityId: string) => {
+    dispatch(resumeActivity(activityId))
   }
 
   const handleConfirmClose = async (description: string) => {
@@ -251,11 +274,21 @@ export default function Dashboard({ session, onLogout }: Props) {
           </div>
         </div>
 
+        <div className="sidebar-section">Escritório</div>
+        <div className="sidebar-list" style={{ marginBottom: 4 }}>
+          <div
+            className={`sidebar-item ${view === 'control' ? 'active' : ''}`}
+            onClick={() => setView('control')}
+          >
+            ◈ Controle
+          </div>
+        </div>
+
         <div className="sidebar-section">Projetos</div>
         <div className="sidebar-list">
           <div
-            className={`sidebar-item ${selectedProject === null ? 'active' : ''}`}
-            onClick={() => selectProject(null)}
+            className={`sidebar-item ${view === 'tasks' && selectedProject === null ? 'active' : ''}`}
+            onClick={() => { setView('tasks'); selectProject(null) }}
           >
             Todos
             <span className="count">{projects.reduce((s, p) => s + p.task_count, 0)}</span>
@@ -263,8 +296,8 @@ export default function Dashboard({ session, onLogout }: Props) {
           {projects.map((p, idx) => (
             <div
               key={p.id}
-              className={`sidebar-item fade-in ${selectedProject === p.id ? 'active' : ''}`}
-              onClick={() => selectProject(p.id)}
+              className={`sidebar-item fade-in ${view === 'tasks' && selectedProject === p.id ? 'active' : ''}`}
+              onClick={() => { setView('tasks'); selectProject(p.id) }}
               style={{ animationDelay: `${idx * 40}ms` }}
             >
               {p.name}
@@ -280,8 +313,11 @@ export default function Dashboard({ session, onLogout }: Props) {
         </div>
       </aside>
 
+      {/* Control view */}
+      {view === 'control' && <Control session={session} />}
+
       {/* Main */}
-      <main className="main-content">
+      {view === 'tasks' && <main className="main-content">
         <div className="main-header">
           <div>
             <div className="main-title">{selectedProjectName}</div>
@@ -317,9 +353,35 @@ export default function Dashboard({ session, onLogout }: Props) {
               <div className="project-name">{currentActivity.projectName}</div>
             </div>
             <div className="timer">{elapsed}</div>
+            <button className="btn-pause" onClick={handlePause} title="Pausar">
+              ⏸
+            </button>
             <button className="btn-stop" onClick={() => setShowCloseModal(true)}>
               PARAR
             </button>
+          </div>
+        )}
+
+        {/* Paused activities */}
+        {pausedActivities.length > 0 && (
+          <div className="paused-list">
+            <div className="paused-list-label">Pausadas</div>
+            {pausedActivities.map((a) => (
+              <div key={a.id} className="paused-item">
+                <div className="paused-info">
+                  <div className="paused-task-name">{a.taskName}</div>
+                  <div className="paused-project-name">{a.projectName}</div>
+                </div>
+                <div className="paused-time">{formatDuration(a.accumulatedMs || 0)}</div>
+                <button
+                  className="btn-resume"
+                  onClick={() => handleResume(a.id)}
+                  title="Retomar"
+                >
+                  ▶ Retomar
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -381,52 +443,13 @@ export default function Dashboard({ session, onLogout }: Props) {
                 const stageName = t.stage_id ? t.stage_id[1] : '-'
                 const stageClass = classifyStage(stageName)
                 const isActive = currentActivity?.taskId === t.id && !currentActivity.closedAt
-                const isDropdownOpen = stageDropdownTaskId === t.id
-
                 return (
                   <div
                     key={t.id}
                     className={`task-card ${isActive ? 'is-active' : ''}`}
                     style={{ animationDelay: `${i * 30}ms` }}
                   >
-                    {/* Stage badge — clickable to change */}
-                    <div className="stage-wrapper" ref={isDropdownOpen ? dropdownRef : undefined}>
-                      <button
-                        className={`task-stage clickable ${stageClass}`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setStageDropdownTaskId(isDropdownOpen ? null : t.id)
-                        }}
-                        title="Clique para mudar o status"
-                      >
-                        {stageName}
-                        <span className="stage-chevron">▾</span>
-                      </button>
-
-                      {isDropdownOpen && (
-                        <div className="stage-dropdown">
-                          {stages.map((s) => (
-                            <button
-                              key={s.id}
-                              className={`stage-dropdown-item ${
-                                t.stage_id && t.stage_id[0] === s.id ? 'current' : ''
-                              } ${classifyStage(s.name)}`}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (!t.stage_id || t.stage_id[0] !== s.id) {
-                                  handleChangeStage(t.id, s.id)
-                                }
-                              }}
-                            >
-                              {s.name}
-                              {t.stage_id && t.stage_id[0] === s.id && (
-                                <span className="check-mark">✓</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <span className={`task-stage ${stageClass}`}>{stageName}</span>
 
                     <div className="task-info">
                       <div className="task-name">{t.name}</div>
@@ -435,6 +458,17 @@ export default function Dashboard({ session, onLogout }: Props) {
                         {t.date_deadline ? ` · ${t.date_deadline}` : ''}
                       </div>
                     </div>
+                    {t.user_ids.length > 0 && (
+                      <div className="task-avatars">
+                        {t.user_ids.slice(0, 3).map((uid) => {
+                          const u = userAvatars[uid]
+                          return u?.avatar
+                            ? <img key={uid} className="task-avatar-mini" src={`data:image/png;base64,${u.avatar}`} title={u.name} />
+                            : <span key={uid} className="task-avatar-mini task-avatar-mini-initials" title={u?.name ?? ''}>{(u?.name ?? '?').slice(0, 2).toUpperCase()}</span>
+                        })}
+                      </div>
+                    )}
+
                     <div className="task-actions">
                       {!isActive && stageClass !== 'stage-done' && (
                         <button
@@ -497,7 +531,7 @@ export default function Dashboard({ session, onLogout }: Props) {
             )}
           </div>
         )}
-      </main>
+      </main>}
 
       {/* Close modal */}
       {showCloseModal && currentActivity && (

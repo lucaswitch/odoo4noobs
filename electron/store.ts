@@ -51,9 +51,14 @@ function saveActivities(activities: TrackedActivity[]): void {
   fs.writeFileSync(ACTIVITIES_FILE, JSON.stringify(activities, null, 2))
 }
 
+// Active = running (not paused, not closed)
 export function getCurrentActivity(): TrackedActivity | null {
-  const activities = loadActivities()
-  return activities.find((a) => !a.closedAt) || null
+  return loadActivities().find((a) => !a.closedAt && !a.pausedAt) || null
+}
+
+// Paused = stopped temporarily (not closed)
+export function getPausedActivities(): TrackedActivity[] {
+  return loadActivities().filter((a) => !a.closedAt && !!a.pausedAt)
 }
 
 export function openActivity(
@@ -64,13 +69,13 @@ export function openActivity(
 ): TrackedActivity {
   const activities = loadActivities()
 
-  // Close any currently open activity first
-  const openIdx = activities.findIndex((a) => !a.closedAt)
-  if (openIdx !== -1) {
-    activities[openIdx].closedAt = new Date().toISOString()
-    const start = new Date(activities[openIdx].startedAt).getTime()
-    const end = new Date(activities[openIdx].closedAt!).getTime()
-    activities[openIdx].durationHours = (end - start) / 3600000
+  // Auto-pause any currently running activity
+  const runningIdx = activities.findIndex((a) => !a.closedAt && !a.pausedAt)
+  if (runningIdx !== -1) {
+    const now = new Date()
+    const elapsed = now.getTime() - new Date(activities[runningIdx].startedAt).getTime()
+    activities[runningIdx].accumulatedMs = (activities[runningIdx].accumulatedMs || 0) + elapsed
+    activities[runningIdx].pausedAt = now.toISOString()
   }
 
   const activity: TrackedActivity = {
@@ -80,12 +85,49 @@ export function openActivity(
     projectId,
     projectName,
     startedAt: new Date().toISOString(),
+    accumulatedMs: 0,
     synced: false,
   }
 
   activities.push(activity)
   saveActivities(activities)
   return activity
+}
+
+export function pauseActivity(activityId: string): TrackedActivity | null {
+  const activities = loadActivities()
+  const idx = activities.findIndex((a) => a.id === activityId)
+  if (idx === -1) return null
+
+  const now = new Date()
+  const elapsed = now.getTime() - new Date(activities[idx].startedAt).getTime()
+  activities[idx].accumulatedMs = (activities[idx].accumulatedMs || 0) + elapsed
+  activities[idx].pausedAt = now.toISOString()
+
+  saveActivities(activities)
+  return activities[idx]
+}
+
+export function resumeActivity(activityId: string): TrackedActivity | null {
+  const activities = loadActivities()
+
+  // Auto-pause any currently running activity
+  const runningIdx = activities.findIndex((a) => !a.closedAt && !a.pausedAt)
+  if (runningIdx !== -1) {
+    const now = new Date()
+    const elapsed = now.getTime() - new Date(activities[runningIdx].startedAt).getTime()
+    activities[runningIdx].accumulatedMs = (activities[runningIdx].accumulatedMs || 0) + elapsed
+    activities[runningIdx].pausedAt = now.toISOString()
+  }
+
+  const idx = activities.findIndex((a) => a.id === activityId)
+  if (idx === -1) { saveActivities(activities); return null }
+
+  activities[idx].pausedAt = undefined
+  activities[idx].startedAt = new Date().toISOString()
+
+  saveActivities(activities)
+  return activities[idx]
 }
 
 export function closeActivity(
@@ -97,10 +139,13 @@ export function closeActivity(
   if (idx === -1) return null
 
   const now = new Date()
+  const sessionMs = now.getTime() - new Date(activities[idx].startedAt).getTime()
+  const totalMs = (activities[idx].accumulatedMs || 0) + sessionMs
+
   activities[idx].closedAt = now.toISOString()
+  activities[idx].pausedAt = undefined
   activities[idx].description = description
-  const start = new Date(activities[idx].startedAt).getTime()
-  activities[idx].durationHours = (now.getTime() - start) / 3600000
+  activities[idx].durationHours = totalMs / 3600000
 
   saveActivities(activities)
   return activities[idx]

@@ -1,6 +1,6 @@
 {
   "name": "odoogugu",
-  "version": "1.0.0",
+  "version": "1.2.2",
   "description": "Odoo activity tracker & timesheet manager",
   "main": "dist-electron/main.js",
   "author": "Lucas Alves",
@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "vitest run",
+    "test:build": "npm run build && vitest run",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
@@ -32,11 +34,15 @@
     "typescript": "^5.3.3",
     "vite": "^5.0.12",
     "vite-plugin-electron": "^0.28.0",
-    "vite-plugin-electron-renderer": "^0.14.5"
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "vitest": "^4.1.0"
   },
   "build": {
     "appId": "com.odoogugu.app",
     "productName": "Odoo4Noobs",
+    "asar": true,
+    "compression": "maximum",
+    "electronLanguages": ["pt-BR", "en-US"],
     "directories": {
       "output": "release"
     },
@@ -46,16 +52,23 @@
     ],
     "publish": null,
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg"
+      ],
       "icon": "build/icon.icns",
       "category": "public.app-category.productivity"
     },
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis"
+      ],
       "icon": "build/icon.ico"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "icon": "build/icon.png",
       "category": "Office",
       "maintainer": "Lucas Alves"
